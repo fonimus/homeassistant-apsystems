@@ -312,17 +312,14 @@ class APsystemsFetcher:
             )
 
             _LOGGER.debug("status code data: " + str(result_data.status_code))
-            _LOGGER.debug("status code data: " + str(result_data_lifetime.status_code))
+            _LOGGER.debug("status code lifetime data: " + str(result_data_lifetime.status_code))
 
             if result_data.status_code == 204:
                 self.cache = None
             else:
-                self.cache = result_data.json()
-
-            _LOGGER.debug("lifetime data: " + str(result_data_lifetime.json()))
-            responseDataJson = result_data_lifetime.json()
-            _LOGGER.debug(responseDataJson)
-            self.cache.lifetime = responseDataJson['lifetime']
+                resultJson = result_data.json()
+                resultLifetimeJson = result_data_lifetime.json()
+                self.cache = {**resultJson, **resultLifetimeJson}
 
             _LOGGER.debug(self.cache)
 
