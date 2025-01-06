@@ -32,6 +32,7 @@ CONF_SUNSET = "sunset"
 CONF_SYSTEM_ID = "systemId"
 
 EXTRA_TIMESTAMP = "timestamp"
+SENSOR_ENERGY_LIFETIME = "lifetime"
 SENSOR_ENERGY_DAY = "energy_day"
 SENSOR_ENERGY_LATEST = "energy_latest"
 SENSOR_ENERGY_TOTAL = "energy_total"
