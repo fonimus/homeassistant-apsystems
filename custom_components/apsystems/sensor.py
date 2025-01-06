@@ -32,11 +32,9 @@ CONF_SUNSET = "sunset"
 CONF_SYSTEM_ID = "systemId"
 
 EXTRA_TIMESTAMP = "timestamp"
-SENSOR_ENERGY_DAY = "energy_day"
-SENSOR_ENERGY_LATEST = "energy_latest"
-SENSOR_ENERGY_TOTAL = "energy_total"
-SENSOR_POWER_LATEST = "power_latest"
-SENSOR_POWER_MAX = "power_max_day"
+SENSOR_ENERGY_LIFETIME = "lifetime"
+SENSOR_ENERGY_TODAY = "today"
+SENSOR_LAST_POWER = "last_power"
 SENSOR_TIME = "date"
 
 # to move apsystems timestamp to UTC
@@ -64,30 +62,22 @@ class ApsMetadata(NamedTuple):
 
 
 SENSORS = {
-    SENSOR_ENERGY_DAY: ApsMetadata(
-        json_key="total",
+    SENSOR_ENERGY_LIFETIME: ApsMetadata(
+        json_key="lifetime",
         unit=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:solar-power",
         state_class="total_increasing",
     ),
-    SENSOR_ENERGY_LATEST: ApsMetadata(
-        json_key="energy",
+    SENSOR_ENERGY_TODAY: ApsMetadata(
+        json_key="today",
         unit=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:solar-power",
+        state_class="total_increasing",
     ),
-    SENSOR_POWER_MAX: ApsMetadata(
-        json_key="max",
+    SENSOR_LAST_POWER: ApsMetadata(
+        json_key="lastPower",
         unit=UnitOfPower.WATT,
         icon="mdi:solar-power",
-    ),
-    SENSOR_POWER_LATEST: ApsMetadata(
-        json_key="power",
-        unit=UnitOfPower.WATT,
-        icon="mdi:solar-power",
-    ),
-    SENSOR_TIME: ApsMetadata(
-        json_key="time",
-        icon="mdi:clock-outline",
     ),
 }
 
@@ -247,7 +237,7 @@ class ApsystemsSensor(SensorEntity):
 
 class APsystemsFetcher:
     url_login = "https://www.apsystemsema.com/ema/intoDemoUser.action?id="
-    url_data = "https://www.apsystemsema.com/ema/ajax/getReportApiAjax/getPowerOnCurrentDayAjax"
+    url_data = "https://www.apsystemsema.com/ema/ajax/getDashboardApiAjax/getDashboardProductionInfoAjax"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Chrome/50.0.2661.102 Firefox/62.0"
     }
@@ -275,7 +265,6 @@ class APsystemsFetcher:
         try:
             browser = await self.login()
 
-            #OLD version datetime.today().strftime("%Y%m%d")
             post_data = {'queryDate': (datetime.now() - timedelta(seconds=(offset_hours/1000))).strftime("%Y%m%d"),
                       'selectedValue': self._ecu_id,
                       'systemId': self._system_id}
