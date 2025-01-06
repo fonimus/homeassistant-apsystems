@@ -319,7 +319,8 @@ class APsystemsFetcher:
             else:
                 self.cache = result_data.json()
 
-            self.lifetime = result_data_lifetime.json()["lifetime"]
+            _LOGGER.debug("lifetime data: " + str(result_data_lifetime.json()))
+            self.cache.lifetime = result_data_lifetime.json()["lifetime"]
 
             _LOGGER.debug(self.cache)
 
