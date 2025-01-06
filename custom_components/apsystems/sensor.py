@@ -32,9 +32,11 @@ CONF_SUNSET = "sunset"
 CONF_SYSTEM_ID = "systemId"
 
 EXTRA_TIMESTAMP = "timestamp"
-SENSOR_ENERGY_LIFETIME = "lifetime"
-SENSOR_ENERGY_TODAY = "today"
-SENSOR_LAST_POWER = "last_power"
+SENSOR_ENERGY_DAY = "energy_day"
+SENSOR_ENERGY_LATEST = "energy_latest"
+SENSOR_ENERGY_TOTAL = "energy_total"
+SENSOR_POWER_LATEST = "power_latest"
+SENSOR_POWER_MAX = "power_max_day"
 SENSOR_TIME = "date"
 
 # to move apsystems timestamp to UTC
@@ -68,16 +70,30 @@ SENSORS = {
         icon="mdi:solar-power",
         state_class="total_increasing",
     ),
-    SENSOR_ENERGY_TODAY: ApsMetadata(
-        json_key="today",
+    SENSOR_ENERGY_DAY: ApsMetadata(
+        json_key="total",
         unit=UnitOfEnergy.KILO_WATT_HOUR,
         icon="mdi:solar-power",
         state_class="total_increasing",
     ),
-    SENSOR_LAST_POWER: ApsMetadata(
-        json_key="lastPower",
+    SENSOR_ENERGY_LATEST: ApsMetadata(
+        json_key="energy",
+        unit=UnitOfEnergy.KILO_WATT_HOUR,
+        icon="mdi:solar-power",
+    ),
+    SENSOR_POWER_MAX: ApsMetadata(
+        json_key="max",
         unit=UnitOfPower.WATT,
         icon="mdi:solar-power",
+    ),
+    SENSOR_POWER_LATEST: ApsMetadata(
+        json_key="power",
+        unit=UnitOfPower.WATT,
+        icon="mdi:solar-power",
+    ),
+    SENSOR_TIME: ApsMetadata(
+        json_key="time",
+        icon="mdi:clock-outline",
     ),
 }
 
@@ -237,7 +253,7 @@ class ApsystemsSensor(SensorEntity):
 
 class APsystemsFetcher:
     url_login = "https://www.apsystemsema.com/ema/intoDemoUser.action?id="
-    url_data = "https://www.apsystemsema.com/ema/ajax/getDashboardApiAjax/getDashboardProductionInfoAjax"
+    url_data = "https://www.apsystemsema.com/ema/ajax/getReportApiAjax/getPowerOnCurrentDayAjax"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Chrome/50.0.2661.102 Firefox/62.0"
     }
@@ -284,13 +300,26 @@ class APsystemsFetcher:
                 self.headers,
                 browser.cookies.get_dict(),
             )
+            result_data_lifetime = await self._hass.async_add_executor_job(
+                s.request,
+                "POST",
+                "https://www.apsystemsema.com/ema/ajax/getDashboardApiAjax/getDashboardProductionInfoAjax",
+                None,
+                post_data,
+                self.headers,
+                browser.cookies.get_dict(),
+            )
 
             _LOGGER.debug("status code data: " + str(result_data.status_code))
+            _LOGGER.debug("status code data: " + str(result_data_lifetime.status_code))
 
             if result_data.status_code == 204:
                 self.cache = None
             else:
                 self.cache = result_data.json()
+
+            self.lifetime = result_data_lifetime.json()["lifetime"]
+
             _LOGGER.debug(self.cache)
 
             self.cache_timestamp = int(round(time.time() * 1000))
@@ -310,19 +339,19 @@ class APsystemsFetcher:
             return self.cache
         else:
             # rules to check cache
-#             timestamp_event = int(self.cache['time'][-1]) + offset_hours  # apsystems have 8h delayed in timestamp from UTC
+            timestamp_event = int(self.cache['time'][-1]) + offset_hours  # apsystems have 8h delayed in timestamp from UTC
             timestamp_now = int(round(time.time() * 1000))
             cache_time = (5 * 60 * 1000) - (10 *1000)  # 4:50 minutes
             request_time = 60 * 1000  # 60 seconds to avoid request what is already requested
             _LOGGER.debug("timestamp_now " + str(timestamp_now))
-#             _LOGGER.debug("timestamp_event " + str(timestamp_event))
-#             _LOGGER.debug("timediff " + str(timestamp_now - timestamp_event))
+            _LOGGER.debug("timestamp_event " + str(timestamp_event))
+            _LOGGER.debug("timediff " + str(timestamp_now - timestamp_event))
             _LOGGER.debug("cache_time " + str(cache_time))
             _LOGGER.debug("self.cache_timestamp " + str(self.cache_timestamp))
             _LOGGER.debug("timediff " + str(timestamp_now - self.cache_timestamp))
             _LOGGER.debug("request_time " + str(request_time))
 
-            if (timestamp_now - self.cache_timestamp > request_time):
+            if (timestamp_now - timestamp_event > cache_time) and (timestamp_now - self.cache_timestamp > request_time):
                 await self.run()
 
         return self.cache
