@@ -181,64 +181,41 @@ class ApsystemsSensor(SensorEntity):
         return self._metadata.icon
 
     @property
-    def available(self, utc_now=None):
-        _LOGGER.debug(f"Sunset variable: {self._sunset=}")
-
-        if self._sunset == 'False':
-            _LOGGER.debug("Sensor is running. Sunset is disabled")
-            return True
-
-        if utc_now is None:
-            utc_now = dt_utcnow()
-        now = as_local(utc_now)
-
-        start_time = self.find_start_time(now)
-        stop_time = self.find_stop_time(now)
-
-        if as_local(start_time) <= now <= as_local(stop_time):
-            _LOGGER.debug(
-                "Sensor is running. Start/Stop time: "
-                f"{as_local(start_time)}, {as_local(stop_time)}"
-            )
-            return True
-        else:
-            _LOGGER.debug(
-                "Sensor is not running. Start/Stop time: "
-                f"{as_local(start_time)}, {as_local(stop_time)}"
-            )
-            return False
+    def available(self):
+        """Return True because the entity should always be available."""
+        return True
 
     async def async_update(self):
-        """Fetch new state data for the sensor.
-        This is the only method that should fetch new data for Home Assistant.
-        """
-        if not self.available:
-            self._state = STATE_UNAVAILABLE
+        """Fetch new state data for the sensor only during the day."""
+        now = dt_utcnow()
+        sunset_time = self.find_stop_time(now)
+
+        if as_local(now) > as_local(sunset_time):
+            _LOGGER.debug("It's after sunset. Not fetching new data.")
             return
 
         ap_data = await self._fetcher.data()
 
-        # state is not available
         if ap_data is None:
             self._state = STATE_UNAVAILABLE
             return
+
         index = self._metadata[0]
         value = ap_data[index]
         if isinstance(value, list):
             value = value[-1]
 
-        #get timestamp
         index_time = SENSORS[SENSOR_TIME][0]
         timestamp = ap_data[index_time][-1]
 
-        if value == timestamp:  # current attribute is the timestamp, so fix it
+        if value == timestamp:
             value = int(value) + offset_hours
             value = datetime.fromtimestamp(value / 1000)
         timestamp = int(timestamp) + offset_hours
 
         self._attributes[EXTRA_TIMESTAMP] = timestamp
 
-        _LOGGER.debug(self._name +':'+str(value))
+        _LOGGER.debug(self._name + ':' + str(value))
         self._state = value
 
     def find_start_time(self, now):
