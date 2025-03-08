@@ -189,9 +189,10 @@ class ApsystemsSensor(SensorEntity):
         """Fetch new state data for the sensor only during the day."""
         now = dt_utcnow()
         sunset_time = self.find_stop_time(now)
+        sunrise_time = self.find_start_time(now)
 
-        if as_local(now) > as_local(sunset_time):
-            _LOGGER.debug("It's after sunset. Not fetching new data.")
+        if as_local(now) > as_local(sunset_time) or as_local(now) < as_local(sunrise_time):
+            _LOGGER.debug("It's before sunrise or after sunset. Not fetching new data.")
             return
 
         ap_data = await self._fetcher.data()
@@ -298,7 +299,7 @@ class APsystemsFetcher:
                 resultLifetimeJson = result_data_lifetime.json()
                 self.cache = {**resultJson, **resultLifetimeJson}
 
-            _LOGGER.debug(self.cache)
+            _LOGGER.info("Result data: %s", self.cache)
 
             self.cache_timestamp = int(round(time.time() * 1000))
         finally:
