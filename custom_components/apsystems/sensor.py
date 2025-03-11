@@ -198,14 +198,13 @@ class ApsystemsSensor(SensorEntity):
         ap_data = await self._fetcher.data()
 
         if ap_data is None:
+            self._state = STATE_UNAVAILABLE
             return
 
         index = self._metadata[0]
         value = ap_data[index]
-        if isinstance(value, list) and value:
+        if isinstance(value, list):
             value = value[-1]
-        else:
-            return
 
         index_time = SENSORS[SENSOR_TIME][0]
         timestamp = ap_data[index_time][-1]
